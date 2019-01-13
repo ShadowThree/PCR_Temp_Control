@@ -1,7 +1,7 @@
 #include "stm32f1xx_hal.h"
 #include "uart/bsp_uartx.h"
 //#include "main.h"
-//#include "dac.h"
+#include "bsp_dac.h"
 #include "gpio.h"
 #include "string.h"
 
@@ -67,26 +67,36 @@ int main(void)
   SystemClock_Config();
 
 	MX_GPIO_Init();
-  //MX_DAC_Init();
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	
+	/****************************************************************************DAC**************************************************************/
+  MX_DAC_Init();
+	/* DAC输出对应值：可设置0~255，对应引脚输出0~3.3V，该值越大，引脚输出电压越高*/
+	uint8_t dac_value=127;
+	/* 设置DAC通道值 */
+  HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, dac_value);
+  /* 启动DAC */
+  HAL_DAC_Start(&hdac, DACx_CHANNEL);
   /* 初始化串口并配置串口中断优先级 */
+	
+	/****************************************************************************USART**************************************************************/
   MX_UARTx_Init();
-  
   memcpy(txbuf,"这是一个串口中断接收回显实验\n",100);
   HAL_UART_Transmit(&huartx,txbuf,strlen((char *)txbuf),1000);
-  
   memcpy(txbuf,"输入数据并以回车键结束\n",100);
   HAL_UART_Transmit(&huartx,txbuf,strlen((char *)txbuf),1000);
-  
   /* 使能接收，进入中断回调函数 */
   HAL_UART_Receive_IT(&huartx,&aRxBuffer,1);
-	
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
   
   /* 无限循环 */
   while (1)
   {
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
 		Delay_ms(5000);
+		dac_value += 10;
+		if(dac_value > 255)
+			dac_value = 0;
+		HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, dac_value);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
 		Delay_ms(5000);
   }
