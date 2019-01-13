@@ -35,6 +35,7 @@
 #include "stm32f1xx.h"
 #include "stm32f1xx_it.h"
 #include "uart/bsp_uartx.h"
+#include "bsp_key.h"
 
 /* USER CODE BEGIN 0 */
 
@@ -175,6 +176,39 @@ void UARTx_IRQHANDLER(void)
 	
   /* USER CODE END UART4_IRQn 1 */
 }
+
+/**
+* @brief This function handles EXTI line0 interrupt.
+*/
+void KEY1_EXTI_IRQHandler(void)
+{
+  HAL_GPIO_EXTI_IRQHandler(KEY1_GPIO_PIN);
+}
+
+/**
+* @brief This function handles EXTI line1 interrupts.
+*/
+void KEY2_EXTI_IRQHandler(void)
+{
+  HAL_GPIO_EXTI_IRQHandler(KEY2_GPIO_PIN);
+}
+
+/**
+* @brief This function handles EXTI line2 interrupt.
+*/
+void KEY3_EXTI_IRQHandler(void)
+{
+	HAL_GPIO_EXTI_IRQHandler(KEY3_GPIO_PIN);
+}
+
+/**
+* @brief This function handles EXTI line3 interrupt.
+*/
+void KEY4_EXTI_IRQHandler(void)
+{
+  HAL_GPIO_EXTI_IRQHandler(KEY4_GPIO_PIN);
+}
+
 
 /* USER CODE BEGIN 1 */
 

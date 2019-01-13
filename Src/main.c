@@ -1,6 +1,6 @@
 #include "stm32f1xx_hal.h"
 #include "uart/bsp_uartx.h"
-//#include "main.h"
+#include "bsp_key.h"
 #include "bsp_dac.h"
 #include "gpio.h"
 #include "string.h"
@@ -65,6 +65,9 @@ int main(void)
   HAL_Init();
   /* 配置系统时钟 */
   SystemClock_Config();
+	
+	/* 板子按键初始化 */
+  KEY_GPIO_Init();
 
 	MX_GPIO_Init();
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
@@ -108,6 +111,53 @@ void Delay_ms(int ms)
 	for(; ms > 0; ms--)
 		for(i = 720; i > 0; i--);
 }
+
+/**
+  * 函数功能: 按键外部中断服务函数
+  * 输入参数: GPIO_Pin：中断引脚
+  * 返 回 值: 无
+  * 说    明: 无
+  */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if(GPIO_Pin==KEY1_GPIO_PIN)
+  {
+    HAL_Delay(20);/* 延时一小段时间，消除抖动 */
+    if(HAL_GPIO_ReadPin(KEY_GPIO,KEY1_GPIO_PIN)==KEY1_DOWN_LEVEL)
+    {
+      HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_0);
+    }
+    __HAL_GPIO_EXTI_CLEAR_IT(KEY1_GPIO_PIN);
+  }
+  else if(GPIO_Pin==KEY2_GPIO_PIN)
+  {
+    HAL_Delay(20);/* 延时一小段时间，消除抖动 */
+    if(HAL_GPIO_ReadPin(KEY_GPIO,KEY2_GPIO_PIN)==KEY2_DOWN_LEVEL)
+    {
+			HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_0);
+    }
+    __HAL_GPIO_EXTI_CLEAR_IT(KEY2_GPIO_PIN);
+  }
+	else if(GPIO_Pin==KEY3_GPIO_PIN)
+  {
+    HAL_Delay(20);/* 延时一小段时间，消除抖动 */
+    if(HAL_GPIO_ReadPin(KEY_GPIO,KEY3_GPIO_PIN)==KEY3_DOWN_LEVEL)
+    {
+      HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_0);
+    }
+    __HAL_GPIO_EXTI_CLEAR_IT(KEY3_GPIO_PIN);
+  }
+	else if(GPIO_Pin==KEY4_GPIO_PIN)
+  {
+    HAL_Delay(20);/* 延时一小段时间，消除抖动 */
+    if(HAL_GPIO_ReadPin(KEY_GPIO,KEY4_GPIO_PIN)==KEY4_DOWN_LEVEL)
+    {
+      HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_0);
+    }
+    __HAL_GPIO_EXTI_CLEAR_IT(KEY4_GPIO_PIN);
+  }
+}
+
 
 /**
   * 函数功能: 串口接收完成回调函数
