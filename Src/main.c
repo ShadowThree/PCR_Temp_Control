@@ -10,10 +10,15 @@
 /* 私有变量 ------------------------------------------------------------------*/
 uint8_t aRxBuffer;
 uint8_t flag = 0;
+uint8_t flag_commOver = 0;
+uint8_t comm[20] = {'\0'};
+uint8_t count_commChr = 0;
 
 /* 扩展变量 ------------------------------------------------------------------*/
 /* 私有函数原形 --------------------------------------------------------------*/
 void Delay_ms(int ms);
+void Error_Handler(void);
+
 /* 函数体 --------------------------------------------------------------------*/
 /**
   * 函数功能: 系统时钟配置
@@ -21,6 +26,42 @@ void Delay_ms(int ms);
   * 返 回 值: 无
   * 说    明: 无
   */
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  /**Initializes the CPU, AHB and APB busses clocks 
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /**Initializes the CPU, AHB and APB busses clocks 
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+/*
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct;
@@ -46,11 +87,11 @@ void SystemClock_Config(void)
 	// HAL_RCC_GetHCLKFreq()/100000	 10us中断一次
 	// HAL_RCC_GetHCLKFreq()/1000000 1us中断一次
   HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);  // 配置并启动系统滴答定时器
-  /* 系统滴答定时器时钟源 */
+  // 系统滴答定时器时钟源 
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
-  /* 系统滴答定时器中断优先级配置 */
+  // 系统滴答定时器中断优先级配置 
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
-}
+}*/
 
 /**
   * 函数功能: 主函数.
@@ -93,15 +134,25 @@ int main(void)
   
   /* 无限循环 */
   while (1)
-  {
+  {/*
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-		Delay_ms(5000);
+		Delay_ms(500);
 		dac_value += 10;
 		if(dac_value > 255)
 			dac_value = 0;
 		HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, dac_value);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-		Delay_ms(5000);
+		Delay_ms(500);*/
+		if(flag_commOver == 1)
+		{
+			HAL_UART_Transmit(&huartx,(uint8_t*)"Receiver Finishing\n",strlen("Receiver Finishing\n"),1000);
+			comm[0] = '\0';
+			flag_commOver = 0;
+			dac_value += 10;
+			if(dac_value > 255)
+			dac_value = 0;
+			HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, dac_value);
+		}
   }
 }
 
@@ -167,7 +218,30 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
 {
-  HAL_UART_Transmit(&huartx,&aRxBuffer,1,0);
+	if((aRxBuffer != '\n') & (count_commChr < 20))
+	{
+		count_commChr++;
+		strncat((char*)comm, (char*)&aRxBuffer, 1);
+	}
+	else
+	{
+		flag_commOver = 1;
+		count_commChr = 0;
+	}
+  //HAL_UART_Transmit(&huartx,&aRxBuffer,1,0);
   HAL_UART_Receive_IT(&huartx,&aRxBuffer,1);
 }
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+
+}
+
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+
+
+
