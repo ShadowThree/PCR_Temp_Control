@@ -1,5 +1,5 @@
 Drivers/*
-MDK-ARM/*
+MDK-ARM/output/*
 sscom.ini
 sscom32.exe
 DeleteCompileInfo.bat
