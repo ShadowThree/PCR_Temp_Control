@@ -13,6 +13,8 @@ uint8_t flag = 0;
 uint8_t flag_commOver = 0;
 uint8_t comm[20] = {'\0'};
 uint8_t count_commChr = 0;
+float tempF = 0.0;
+uint8_t tempS[10] = {'\0'};
 
 /* 扩展变量 ------------------------------------------------------------------*/
 /* 私有函数原形 --------------------------------------------------------------*/
@@ -30,13 +32,12 @@ void Error_Handler(void);
   * @brief System Clock Configuration
   * @retval None
   */
-void SystemClock_Config(void)
+/*void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-  /**Initializes the CPU, AHB and APB busses clocks 
-  */
+  // Initializes the CPU, AHB and APB busses clocks 
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
@@ -47,8 +48,7 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  /**Initializes the CPU, AHB and APB busses clocks 
-  */
+  // Initializes the CPU, AHB and APB busses clocks 
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
@@ -60,8 +60,7 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-}
-/*
+}*/
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct;
@@ -91,7 +90,7 @@ void SystemClock_Config(void)
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
   // 系统滴答定时器中断优先级配置 
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
-}*/
+}
 
 /**
   * 函数功能: 主函数.
@@ -134,18 +133,28 @@ int main(void)
   
   /* 无限循环 */
   while (1)
-  {/*
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-		Delay_ms(500);
+  {
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+		HAL_Delay(500);
 		dac_value += 10;
 		if(dac_value > 255)
 			dac_value = 0;
 		HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, dac_value);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-		Delay_ms(500);*/
-		if(flag_commOver == 1)
+		
+		if(0)
+		//if(flag_commOver == 1)
 		{
-			HAL_UART_Transmit(&huartx,(uint8_t*)"Receiver Finishing\n",strlen("Receiver Finishing\n"),1000);
+			if(strncmp((char*)comm, "temp", 4) == 0)
+			{
+				//tempF = SMBus_ReadTemp();
+				sprintf((char*)tempS, "%f\n", tempF);
+				HAL_UART_Transmit(&huartx, tempS,strlen((char*)tempS),1000);
+			}
+			else
+			{
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Commamd Wrong!\n",strlen("Commamd Wrong!\n"),1000);
+			}
+	    
 			comm[0] = '\0';
 			flag_commOver = 0;
 			dac_value += 10;
