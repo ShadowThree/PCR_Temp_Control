@@ -693,16 +693,6 @@
               <FileType>1</FileType>
               <FilePath>..\Src\bsp_key.c</FilePath>
             </File>
-            <File>
-              <FileName>mlx90614_github.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\mlx90614_github.c</FilePath>
-            </File>
-            <File>
-              <FileName>smbus.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Src\smbus.c</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>
