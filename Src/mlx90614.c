@@ -8,7 +8,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "mlx90614.h"
-//#include "lcd12832.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -23,7 +22,7 @@
 #endif
 
 #if 1		// mlx90615
-#define SA						0x5b	//Slave address 单个MLX90614时地址为0x00,多个时地址默认为0x5a
+#define SA						0x5b	//Slave address 单个MLX90615时地址为0x00,多个时地址默认为0x5b
 #define RAM_ACCESS		0x26 	//RAM access command
 #define EEPROM_ACCESS	0x20 	//EEPROM access command
 #define RAM_TOBJ1			0x27 	//To1 address in the eeprom
@@ -45,11 +44,18 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 
-void delay_us(uint32_t us)
+/*******************************************************************************
+* Function Name  : delay_us
+* Description    : 1us per cycle (stm32 HSI 64M, if the something change, rewrite this function)
+* Input          : time in us
+* Output         : None
+* Return         : None
+*******************************************************************************/
+/*void delay_us(uint32_t us)		// maybe need modify
 {
 	us = (us<<2) + (us<<1) + us;
 	while(us--);
-}
+}*/
 
 /*******************************************************************************
 * Function Name  : SMBus_StartBit
@@ -204,23 +210,6 @@ uint8_t SMBus_ReceiveByte(uint8_t ack_nack)
     SMBus_SendBit(ack_nack);			// Sends acknowledgment bit
     return RX_buffer;
 }
-
-/*******************************************************************************
-* Function Name  : SMBus_Delay
-* Description    : 延时  一次循环约1us
-* Input          : time
-* Output         : None
-* Return         : None
-*******************************************************************************/
-/*void SMBus_Delay(uint16_t time)
-{
-		//time *= 6;
-    uint16_t i, j;
-    for (i=0; i<4; i++)
-    {
-        for (j=0; j<time; j++);
-    }
-}*/
 
 /*******************************************************************************
 * Function Name  : SMBus_Init

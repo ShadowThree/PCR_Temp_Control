@@ -698,6 +698,16 @@
               <FileType>1</FileType>
               <FilePath>..\Src\mlx90614.c</FilePath>
             </File>
+            <File>
+              <FileName>TM1650.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\TM1650.c</FilePath>
+            </File>
+            <File>
+              <FileName>public.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\public.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

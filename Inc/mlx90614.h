@@ -14,24 +14,24 @@
 //#include "stm32f10x_lib.h"
 #include "stm32f1xx_hal.h"
 #include "stdint.h"
+#include "public.h"
 /* Exported types ------------------------------------------------------------*/
 /* Exported variables --------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
+
+//void delay_us(uint32_t us);
 void SMBus_StartBit(void);
 void SMBus_StopBit(void);
 void SMBus_SendBit(uint8_t);
 uint8_t SMBus_SendByte(uint8_t);
 uint8_t SMBus_ReceiveBit(void);
 uint8_t SMBus_ReceiveByte(uint8_t);
-//void SMBus_Delay(uint16_t);
-void delay_us(uint32_t us);
 void SMBus_Init(void);
 uint16_t SMBus_ReadMemory(uint8_t, uint8_t);
 uint8_t PEC_Calculation(uint8_t*);
 float SMBus_ReadTemp(void); //获取温度值
-void SMBus_DisplayTemperature(void);    //在LCD第5，6页显示温度
 #endif
 
 /*********************************END OF FILE*********************************/

@@ -51,36 +51,27 @@ extern "C" {
 #include "stm32f1xx_hal.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
+uint8_t aRxBuffer;
+uint8_t flag_commOver = 0;
+uint8_t comm[20] = {'\0'};
+uint8_t count_commChr = 0;
+float tempF = 0.0;
+uint8_t tempS[10] = {'\0'};
+static uint8_t num[16] = {0x3f, 0x06, 0x5b, 0x4f, 
+													0x66, 0x6d, 0x7d, 0x07,
+													0x7f, 0x6f, 0x77, 0x7c,
+													0x39, 0x5e, 0x79, 0x71};
 /* Exported types ------------------------------------------------------------*/
-/* USER CODE BEGIN ET */
-
-/* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
-/* USER CODE BEGIN EC */
-
-/* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
-/* USER CODE BEGIN EM */
-
-/* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
-
-/* USER CODE BEGIN EFP */
-
-/* USER CODE END EFP */
+void SystemClock_Config(void);
 
 /* Private defines -----------------------------------------------------------*/
-/* USER CODE BEGIN Private defines */
-
-/* USER CODE END Private defines */
 
 #ifdef __cplusplus
 }

@@ -1,35 +1,25 @@
 #include "stm32f1xx_hal.h"
+#include "main.h"
 #include "uart/bsp_uartx.h"
 #include "bsp_key.h"
 #include "bsp_dac.h"
 #include "gpio.h"
 #include "mlx90614.h"
+#include "TM1650.h"
 #include "string.h"
 
 /* 私有类型定义 --------------------------------------------------------------*/
 /* 私有宏定义 ----------------------------------------------------------------*/
 /* 私有变量 ------------------------------------------------------------------*/
-uint8_t aRxBuffer;
-uint8_t flag_commOver = 0;
-uint8_t comm[20] = {'\0'};
-uint8_t count_commChr = 0;
-float tempF = 0.0;
-uint8_t tempS[10] = {'\0'};
-
 /* 扩展变量 ------------------------------------------------------------------*/
 /* 私有函数原形 --------------------------------------------------------------*/
-void Error_Handler(void);
-
 /* 函数体 --------------------------------------------------------------------*/
+
 /**
   * 函数功能: 系统时钟配置
   * 输入参数: 无
   * 返 回 值: 无
   * 说    明: 无
-  */
-/**
-  * @brief System Clock Configuration
-  * @retval None
   */
 void SystemClock_Config(void)
 {
@@ -140,7 +130,9 @@ int main(void)
   HAL_UART_Receive_IT(&huartx,&aRxBuffer,1);
 	
 	/****************************************************************************I2C**************************************************************/
-  SMBus_Init();	
+  SMBus_Init();		// init mlx90614/5
+	
+	TM1650_Init();	// Init TM1650
   
   while (1)
   {	
@@ -160,6 +152,46 @@ int main(void)
 			if(strncmp((char*)comm, "temp", 4) == 0)
 			{
 				tempF = SMBus_ReadTemp();
+				uint32_t temp = 0.0;
+				if(tempF >= 100 && tempF < 1000)
+				{
+					temp = tempF * 10;
+					Display_L1(num[temp/1000]);
+					Display_L2(num[temp%1000/100]);
+					Display_L3(num[temp%100/10] | 0x80);
+					Display_L4(num[temp%10]);
+				}
+				else if(tempF >= 10)
+				{
+					temp = tempF * 100;
+					Display_L1(num[temp/1000]);
+					Display_L2(num[temp%1000/100] | 0x80);
+					Display_L3(num[temp%100/10]);
+					Display_L4(num[temp%10]);
+				}
+				else if(tempF >= 0)
+				{
+					temp = tempF * 1000;
+					Display_L1(num[temp/1000] | 0x80);
+					Display_L2(num[temp%1000/100]);
+					Display_L3(num[temp%100/10]);
+					Display_L4(num[temp%10]);
+				}
+				else if(tempF >= -0.01)
+				{
+					temp = tempF * -100;
+					Display_L1(0x40);			// sign -
+					Display_L2(num[0] | 0x80);	// 0.
+					Display_L3(num[temp/10]);
+					Display_L4(num[temp%10]);
+				}
+				else	// the temp is out of range
+				{
+					Display_L1(0x00);		// nothing
+					Display_L2(0x79);		// E
+					Display_L3(0x50);		// r
+					Display_L4(0x50);		// r
+				}
 				sprintf((char*)tempS, "%f\n", tempF);
 				HAL_UART_Transmit(&huartx, tempS,strlen((char*)tempS),1000);
 			}
