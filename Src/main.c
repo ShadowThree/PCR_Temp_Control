@@ -2,7 +2,6 @@
 #include "uart/bsp_uartx.h"
 #include "bsp_key.h"
 #include "bsp_dac.h"
-//#include "i2c.h"
 #include "gpio.h"
 #include "mlx90614.h"
 #include "string.h"
@@ -11,7 +10,6 @@
 /* 私有宏定义 ----------------------------------------------------------------*/
 /* 私有变量 ------------------------------------------------------------------*/
 uint8_t aRxBuffer;
-uint8_t flag = 0;
 uint8_t flag_commOver = 0;
 uint8_t comm[20] = {'\0'};
 uint8_t count_commChr = 0;
@@ -33,7 +31,7 @@ void Error_Handler(void);
   * @brief System Clock Configuration
   * @retval None
   */
-/*void SystemClock_Config(void)
+void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
@@ -61,8 +59,17 @@ void Error_Handler(void);
   {
     Error_Handler();
   }
-}*/
-void SystemClock_Config(void)
+	
+	// HAL_RCC_GetHCLKFreq()/1000    1ms中断一次
+	// HAL_RCC_GetHCLKFreq()/100000	 10us中断一次
+	// HAL_RCC_GetHCLKFreq()/1000000 1us中断一次
+  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);  // 配置并启动系统滴答定时器
+  // 系统滴答定时器时钟源 
+  HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
+  // 系统滴答定时器中断优先级配置 
+  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+}
+/*void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
@@ -86,12 +93,12 @@ void SystemClock_Config(void)
  	// HAL_RCC_GetHCLKFreq()/1000    1ms中断一次
 	// HAL_RCC_GetHCLKFreq()/100000	 10us中断一次
 	// HAL_RCC_GetHCLKFreq()/1000000 1us中断一次
-  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000000);  // 配置并启动系统滴答定时器
+  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);  // 配置并启动系统滴答定时器
   // 系统滴答定时器时钟源 
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
   // 系统滴答定时器中断优先级配置 
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
-}
+}*/
 
 /**
   * 函数功能: 主函数.
@@ -133,13 +140,11 @@ int main(void)
   HAL_UART_Receive_IT(&huartx,&aRxBuffer,1);
 	
 	/****************************************************************************I2C**************************************************************/
-  SMBus_Init();
-	SMBus_ReadTemp();
-	
-	
-  /* 无限循环 */
+  SMBus_Init();	
+  
   while (1)
-  {		
+  {	
+		/*
 		if(0)			// DAC test
 		{
 			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
@@ -148,10 +153,8 @@ int main(void)
 			if(dac_value > 255)
 				dac_value = 0;
 			HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, dac_value);
-		}
+		}*/
 		
-		//HAL_Delay(500);
-		//if(1)
 		if(flag_commOver == 1)
 		{
 			if(strncmp((char*)comm, "temp", 4) == 0)
@@ -171,7 +174,7 @@ int main(void)
 			if(dac_value > 255)
 			dac_value = 0;
 			HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, dac_value);
-		}
+		}	
   }
 }
 

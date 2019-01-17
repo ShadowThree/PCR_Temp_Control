@@ -14,10 +14,20 @@
 /* Private define ------------------------------------------------------------*/
 #define ACK	 0
 #define	NACK 1
-#define SA				0x00 //Slave address 单个MLX90614时地址为0x00,多个时地址默认为0x5a
-#define RAM_ACCESS		0x00 //RAM access command
-#define EEPROM_ACCESS	0x20 //EEPROM access command
-#define RAM_TOBJ1		0x07 //To1 address in the eeprom
+
+#if 0		// mlx90614
+#define SA						0x5a	//Slave address 单个MLX90614时地址为0x00,多个时地址默认为0x5a
+#define RAM_ACCESS		0x00 	//RAM access command
+#define EEPROM_ACCESS	0x20 	//EEPROM access command
+#define RAM_TOBJ1			0x07 	//To1 address in the eeprom
+#endif
+
+#if 1		// mlx90615
+#define SA						0x5b	//Slave address 单个MLX90614时地址为0x00,多个时地址默认为0x5a
+#define RAM_ACCESS		0x26 	//RAM access command
+#define EEPROM_ACCESS	0x20 	//EEPROM access command
+#define RAM_TOBJ1			0x27 	//To1 address in the eeprom
+#endif
 
 #define SMBUS_PORT	    GPIOB
 #define SMBUS_SCK		GPIO_PIN_6
@@ -25,15 +35,21 @@
 
 #define RCC_APB2Periph_SMBUS_PORT		RCC_APB2Periph_GPIOB
 
-#define SMBUS_SCK_H()	    SMBUS_PORT->BSRR = SMBUS_SCK
-#define SMBUS_SCK_L()	    SMBUS_PORT->BRR = SMBUS_SCK
-#define SMBUS_SDA_H()	    SMBUS_PORT->BSRR = SMBUS_SDA
-#define SMBUS_SDA_L()	    SMBUS_PORT->BRR = SMBUS_SDA
+#define SMBUS_SCK_H()	    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET)
+#define SMBUS_SCK_L()	    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET)
+#define SMBUS_SDA_H()	    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET)
+#define SMBUS_SDA_L()	    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET)
 
-#define SMBUS_SDA_PIN()	    SMBUS_PORT->IDR & SMBUS_SDA //读取引脚电平
+#define SMBUS_SDA_PIN()	  HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7) //读取引脚电平
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
+
+void delay_us(uint32_t us)
+{
+	us = (us<<2) + (us<<1) + us;
+	while(us--);
+}
 
 /*******************************************************************************
 * Function Name  : SMBus_StartBit
@@ -45,15 +61,15 @@
 void SMBus_StartBit(void)
 {
     SMBUS_SDA_H();		// Set SDA line
-    HAL_Delay(5);	    // Wait a few microseconds
+    delay_us(5);	    // Wait a few microseconds
     SMBUS_SCK_H();		// Set SCL line
-    HAL_Delay(5);	    // Generate bus free time between Stop
+    delay_us(5);	    // Generate bus free time between Stop
     SMBUS_SDA_L();		// Clear SDA line
-    HAL_Delay(5);	    // Hold time after (Repeated) Start
+    delay_us(5);	    // Hold time after (Repeated) Start
     // Condition. After this period, the first clock is generated.
     //(Thd:sta=4.0us min)
     SMBUS_SCK_L();	    // Clear SCL line
-    HAL_Delay(5);	    // Wait a few microseconds
+    delay_us(5);	    // Wait a few microseconds
 }
 
 /*******************************************************************************
@@ -66,11 +82,11 @@ void SMBus_StartBit(void)
 void SMBus_StopBit(void)
 {
     SMBUS_SCK_L();		// Clear SCL line
-    HAL_Delay(5);	    // Wait a few microseconds
+    delay_us(5);	    // Wait a few microseconds
     SMBUS_SDA_L();		// Clear SDA line
-    HAL_Delay(5);	    // Wait a few microseconds
+    delay_us(5);	    // Wait a few microseconds
     SMBUS_SCK_H();		// Set SCL line
-    HAL_Delay(5);	    // Stop condition setup time(Tsu:sto=4.0us min)
+    delay_us(5);	    // Stop condition setup time(Tsu:sto=4.0us min)
     SMBUS_SDA_H();		// Set SDA line
 }
 
@@ -122,11 +138,11 @@ void SMBus_SendBit(uint8_t bit_out)
     {
         SMBUS_SDA_H();
     }
-    HAL_Delay(2);					// Tsu:dat = 250ns minimum
+    delay_us(2);					// Tsu:dat = 250ns minimum
     SMBUS_SCK_H();					// Set SCL line
-    HAL_Delay(6);					// High Level of Clock Pulse
+    delay_us(6);					// High Level of Clock Pulse
     SMBUS_SCK_L();					// Clear SCL line
-    HAL_Delay(3);					// Low Level of Clock Pulse
+    delay_us(3);					// Low Level of Clock Pulse
 //	SMBUS_SDA_H();				    // Master release SDA line ,
     return;
 }
@@ -143,9 +159,9 @@ uint8_t SMBus_ReceiveBit(void)
     uint8_t Ack_bit;
 
     SMBUS_SDA_H();          //引脚靠外部电阻上拉，当作输入
-	HAL_Delay(2);			// High Level of Clock Pulse
+	delay_us(2);			// High Level of Clock Pulse
     SMBUS_SCK_H();			// Set SCL line
-    HAL_Delay(5);			// High Level of Clock Pulse
+    delay_us(5);			// High Level of Clock Pulse
     if (SMBUS_SDA_PIN())
     {
         Ack_bit=1;
@@ -155,7 +171,7 @@ uint8_t SMBus_ReceiveBit(void)
         Ack_bit=0;
     }
     SMBUS_SCK_L();			// Clear SCL line
-    HAL_Delay(3);			// Low Level of Clock Pulse
+    delay_us(3);			// Low Level of Clock Pulse
 
     return	Ack_bit;
 }
