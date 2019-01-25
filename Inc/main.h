@@ -49,8 +49,15 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_hal.h"
-
+#include "stdbool.h"
+/* Exported macro ------------------------------------------------------------*/
+#define VOL_MAX 		145
+#define VOL_MIN 		40
+#define INIT_VOL 		94
+	
 /* Private includes ----------------------------------------------------------*/
+#define COMM_BUFSIZE 32
+bool begin = 0;
 uint8_t aRxBuffer;
 uint8_t flag_commOver = 0;
 uint8_t comm[20] = {'\0'};
@@ -61,16 +68,39 @@ static uint8_t num[16] = {0x3f, 0x06, 0x5b, 0x4f,
 													0x66, 0x6d, 0x7d, 0x07,
 													0x7f, 0x6f, 0x77, 0x7c,
 													0x39, 0x5e, 0x79, 0x71};
+/* DAC输出对应值：可设置0~255，对应引脚输出0~3.3V，该值越大，引脚输出电压越高*/
+uint8_t outputV = INIT_VOL;
+uint8_t format_out[20] = {'\0'};
+float tempSet = 35.0;
+													
+float PID_P = 0.9;
+float PID_I = 1.0;
+float PID_D = 0.0;
+
+float preErr = 0;
+float integral = 0;
+float error = 0;
+uint16_t cycle_ms = 1000;
+float derivative = 0;			
+float PID_Out = 0.0;
+													
 /* Exported types ------------------------------------------------------------*/
-
+enum {
+TEMP = 0,
+VOL_OUT,
+SET_P,
+SET_I,
+SET_D,
+SET_T
+} LED_Status = TEMP;
 /* Exported constants --------------------------------------------------------*/
-
-/* Exported macro ------------------------------------------------------------*/
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 void SystemClock_Config(void);
-
+void ShowVal_float(float val);
+void ShowVal_int(uint8_t val);
+void Module_Init(void);
 /* Private defines -----------------------------------------------------------*/
 
 #ifdef __cplusplus
