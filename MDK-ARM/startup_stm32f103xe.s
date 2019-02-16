@@ -353,6 +353,7 @@ DMA2_Channel4_5_IRQHandler
                 
                  ELSE
                 
+				 EXPORT  __heap_base    ; ******add by djd*******
                  IMPORT  __use_two_region_memory
                  EXPORT  __user_initial_stackheap
                  

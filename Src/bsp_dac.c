@@ -25,8 +25,9 @@ void MX_DAC_Init(void)
 
  /* DACÕ®µ¿ ‰≥ˆ≈‰÷√ */
   sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
-  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_DISABLE;
-  HAL_DAC_ConfigChannel(&hdac, &sConfig, DACx_CHANNEL);
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+  HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_1);
+	HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_2);
 
 }
 

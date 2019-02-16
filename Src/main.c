@@ -1,12 +1,6 @@
-#include "stm32f1xx_hal.h"
 #include "main.h"
-#include "uart/bsp_uartx.h"
-#include "bsp_key.h"
-#include "bsp_dac.h"
-#include "gpio.h"
-#include "mlx90614.h"
-#include "TM1650.h"
-#include "string.h"
+
+//#include "command.h"
 
 /* 私有类型定义 --------------------------------------------------------------*/
 /* 私有宏定义 ----------------------------------------------------------------*/
@@ -98,28 +92,22 @@ void SystemClock_Config(void)
   */
 int main(void)
 {
-	Module_Init();
+	Module_Init();	
   
   while (1)
-  {		
-		if(flag_commOver == 1)   // command detect
+  {	
+		// if comm is NOT null and already over.
+		if((comm[0] != '\0') && (comm[strlen((char*)comm)-1] == '\n'))
 		{
-			if(strncmp((char*)comm, "set,1", 5) == 0)
-			{
-					begin = true;
-					
-			}
-			else if(strncmp((char*)comm, "set,0", 5) == 0)
-			{
-				begin = false;
-			}
-			else
-			{
-				HAL_UART_Transmit(&huartx, (uint8_t*)"Commamd Wrong!\n",strlen("Commamd Wrong!\n"),1000);
-			}
-			comm[0] = '\0';
-			flag_commOver = 0;
+			args = cmd_split((char*)comm);
+			if(cmd_execute(args)) 		// if execute succssful, send OK
+				HAL_UART_Transmit(&huartx, (uint8_t*)"OK\r\n\r\n", strlen("OK\r\n\r\n"), 1000);
+			for(int i = 0; i < COMM_BUFSIZE; i++)  		// reset comm[]
+				comm[i] = '\0';
+			free(args);
 		}
+		HAL_Delay(10);
+		
 		if(begin == 1)  // working status
 		{
 			HAL_Delay(cycle_ms);
@@ -134,7 +122,8 @@ int main(void)
 				outputV = VOL_MAX;
 			if(outputV <= VOL_MIN)
 				outputV = VOL_MIN;
-			HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, outputV);
+			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, outputV);
+			//HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, outputV);
 			if(LED_Status == TEMP)
 				ShowVal_float(tempF);
 			else if(LED_Status == VOL_OUT)
@@ -143,35 +132,6 @@ int main(void)
 			sprintf((char*)format_out, "%.2f, %3d, %.2f,\r\n", tempSet, outputV, tempF);
 			HAL_UART_Transmit(&huartx, format_out,strlen((char*)format_out),1000);
 		}
-		
-		if(0)			// DAC test
-		{
-			if(outputV > VOL_MAX)
-				outputV = VOL_MAX;
-			else if(outputV < VOL_MIN)
-				outputV = VOL_MIN;
-			HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, outputV);
-			ShowVal_int(outputV);
-		}
-		if(0)
-		//if(flag_commOver == 1)
-		{
-			if(strncmp((char*)comm, "temp", 4) == 0)
-			{
-				tempF = SMBus_ReadTemp();
-				
-				if(LED_Status == TEMP)		// show temperature
-					ShowVal_float(tempF);
-				sprintf((char*)tempS, "%f\n", tempF);
-				HAL_UART_Transmit(&huartx, tempS,strlen((char*)tempS),1000);
-			}
-			else
-			{
-				HAL_UART_Transmit(&huartx, (uint8_t*)"Commamd Wrong!\n",strlen("Commamd Wrong!\n"),1000);
-			}
-			comm[0] = '\0';
-			flag_commOver = 0;
-		}	
   }
 }
 
@@ -192,7 +152,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			{
 				HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_0);
 				outputV++;
-				HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, outputV);
+				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, outputV);
+				//HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, outputV);
 				ShowVal_int(outputV);
 			}
 			else if(LED_Status == SET_T)
@@ -212,7 +173,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			{
 				HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_0);
 				outputV--;
-				HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, outputV);
+				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, outputV);
+				//HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, outputV);
 				ShowVal_int(outputV);
 			}
 			else if(LED_Status == SET_T)
@@ -252,9 +214,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     HAL_Delay(20);/* 延时一小段时间，消除抖动 */
     if(HAL_GPIO_ReadPin(KEY_GPIO,KEY4_GPIO_PIN)==KEY4_DOWN_LEVEL)
     {
-			outputV = 94;			// reset the outputV
+			outputV = INIT_VOL;			// reset the outputV
 			tempSet = 25.0;
-			HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, outputV);
+			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, outputV);
+			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, outputV);
 			LED_Status = VOL_OUT;
 			ShowVal_int(outputV);
 			HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_0);
@@ -272,16 +235,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
 {
-	if((aRxBuffer != '\n') & (count_commChr < 20))
+	if(aRxBuffer != '\r')
 	{
-		count_commChr++;
 		strncat((char*)comm, (char*)&aRxBuffer, 1);
+		count_commChr++;
 	}
 	else
 	{
-		flag_commOver = 1;
-		count_commChr = 0;
+		strncat((char*)comm, (char*)"\n", 1);
 	}
+	
   //HAL_UART_Transmit(&huartx,&aRxBuffer,1,0);
   HAL_UART_Receive_IT(&huartx,&aRxBuffer,1);
 }
@@ -366,12 +329,14 @@ void Module_Init(void)
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);		// light the LED
 	
   MX_DAC_Init();				// DAC init
-  HAL_DAC_SetValue(&hdac, DACx_CHANNEL, DAC_ALIGN_8B_R, outputV);		// Init the DAC's output
-  HAL_DAC_Start(&hdac, DACx_CHANNEL);		/* 启动DAC */
+  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, INIT_VOL);		// Init the DAC's output
+  HAL_DAC_Start(&hdac, DAC_CHANNEL_1);		/* 启动DAC channel 1 */
+	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, INIT_VOL);		// Init the DAC's output
+  HAL_DAC_Start(&hdac, DAC_CHANNEL_2);		/* 启动DAC channel 2 */
 	
   MX_UARTx_Init();			/* 初始化串口并配置串口中断优先级 */
 	HAL_UART_Transmit(&huartx, (uint8_t*)"\t\tPCR Temp Control System\t\t\n",strlen("\t\tPCR Temp Control System\t\t\n"),1000);
-  HAL_UART_Receive_IT(&huartx,&aRxBuffer,1);		/* 使能接收，进入中断回调函数 */
+  HAL_UART_Receive_IT(&huartx,&aRxBuffer,1);  	/* 使能接收，进入中断回调函数 */
 	
   SMBus_Init();					// init mlx90614/5
 	
@@ -385,6 +350,157 @@ void Module_Init(void)
   * @retval None
   */
 void Error_Handler(void)
-{
+{}
 
+/*
+PS,2,10.0		// set low temp
+PS,4,90.0		// set hign temp
+PS,7,25.0		// set current temp	
+
+PS,2			// check low temp
+PS,4			// check hign temp
+*/
+int cmd_PS(char **args)
+{
+	if (args[1] == NULL) 		// 参数不足
+	{
+		HAL_UART_Transmit(&huartx, (uint8_t*)"expected argument to \"PS\"\n", strlen("expected argument to \"PS\"\n"), 1000);
+	} 
+	else if(args[2] == NULL)	// 查询命令
+	{
+		int num = atoi(args[1]);
+		char tempStr[10] = {'\0'};
+		switch(num)
+		{
+			case 2:
+				
+				break;
+			case 4:
+				break;
+			case 7:
+				sprintf(tempStr, "%.1f\r\n", tempSet);
+				HAL_UART_Transmit(&huartx, (uint8_t*)tempStr, strlen(tempStr), 1000);
+				break;
+			default:
+				break;
+		}
+  }
+	else		// 设置命令  PS 7 23.0
+	{
+		int num = atoi(args[1]);
+		switch(num)
+		{
+			case 2:
+				break;
+			case 4:
+				break;
+			case 7:
+				tempSet = strTof(args[2]);
+				break;
+			default:
+				break;
+		}
+	}
+  return 1;
+}
+
+char **cmd_split(char *line)
+{
+  int position = 0;
+  char **tokens = malloc(8 * sizeof(char*));
+	char *token;
+	
+	if (!tokens) 
+	{
+		HAL_UART_Transmit(&huartx, (uint8_t*)"Allocation error!\r\n", strlen("Allocation error!\r\n"), 1000);
+    return NULL;
+  }
+
+	HAL_UART_Transmit(&huartx, (uint8_t*)"Comm = \"", strlen("Comm = \""), 1000);
+  token = strtok(line, LSH_TOK_DELIM);
+	HAL_UART_Transmit(&huartx, (uint8_t*)token, strlen(token), 1000);
+	
+  while (token != NULL) 
+	{		
+    tokens[position] = token;
+    position++;
+
+    token = strtok(NULL, LSH_TOK_DELIM);
+		if(token)
+		{
+			HAL_UART_Transmit(&huartx, (uint8_t*)" ", strlen(" "), 1000);
+			HAL_UART_Transmit(&huartx, (uint8_t*)token, strlen(token), 1000);
+		}
+  }
+	HAL_UART_Transmit(&huartx, (uint8_t*)"\"\r\n", strlen("\"\r\n"), 1000);
+  tokens[position] = NULL;
+  return tokens;
+}
+
+int cmd_execute(char **args)
+{
+  int i;
+
+  if (args[0] == NULL) 	// An empty command was entered.
+    return 1;
+
+  for (i = 0; i < cmd_count(); i++) 
+	{
+    if (strcmp(args[0], cmd_str[i]) == 0) 
+      return (*cmd_funcP[i])(args);
+  }
+  return 0;
+}
+
+int cmd_count(void) {
+  return sizeof(cmd_str) / sizeof(char *);
+}
+
+float strTof(const char *args)
+{
+  float result = 0.0;
+  unsigned int i, quan = 1;
+  unsigned char afterP = 0;
+  int sign = 1;
+
+	for(i = 0; args[i] != '\0'; i++)
+  {
+    if(i == 0)
+    {
+			if((args[0] == '-') || (args[0] == '+'))
+      {
+				continue;
+      }
+    }
+    if(args[i] == '.')
+    {
+			if(++afterP > 1)
+				HAL_UART_Transmit(&huartx, (uint8_t*)"The str's format is NOT correct!\r\n", strlen("The str's format is NOT correct!\r\n"), 1000);
+    }
+		else if(args[i] <= '9' && args[i] >= '0')
+		{
+		 if(afterP == 0)
+		 {
+			 result = result * 10 + args[i] - '0';
+		 }
+		 else
+		 {
+			 quan *= 10;
+			 if(quan > UINT_MAX/10)
+			 {
+				 HAL_UART_Transmit(&huartx, (uint8_t*)"Insufficient precision!\r\n", strlen("Insufficient precision!\r\n"), 1000);
+				 return result;
+			 }
+			 result = result + (float)(args[i] - '0') / quan;
+		 }
+		}
+		else
+		{
+			HAL_UART_Transmit(&huartx, (uint8_t*)"The str's format is NOT correct!\r\n", strlen("The str's format is NOT correct!\r\n"), 1000);
+			return 0.0;
+		}
+	}
+
+	sign = (args[0] == '-')? -1 : 1;
+	return (sign * result);
 }

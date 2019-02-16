@@ -29,8 +29,8 @@
 #endif
 
 #define SMBUS_PORT	    GPIOB
-#define SMBUS_SCK		GPIO_PIN_6
-#define SMBUS_SDA		GPIO_PIN_7
+#define SMBUS_SCK				GPIO_PIN_6
+#define SMBUS_SDA				GPIO_PIN_7
 
 #define RCC_APB2Periph_SMBUS_PORT		RCC_APB2Periph_GPIOB
 

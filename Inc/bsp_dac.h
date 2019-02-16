@@ -14,11 +14,8 @@
 #define DACx_RELEASE_RESET()             __HAL_RCC_DAC_RELEASE_RESET()
 
 // 定义DAC通道引脚
-#define DACx_CHANNEL_PIN                 GPIO_PIN_4
+#define DACx_CHANNEL_PIN                 (GPIO_PIN_4 | GPIO_PIN_5)
 #define DACx_CHANNEL_GPIO_PORT           GPIOA
-
-// 定义DAC通道
-#define DACx_CHANNEL                     DAC_CHANNEL_1
 
 /* 扩展变量 ------------------------------------------------------------------*/
 extern DAC_HandleTypeDef hdac;

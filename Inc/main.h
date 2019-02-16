@@ -50,17 +50,38 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_hal.h"
 #include "stdbool.h"
+#include "uart/bsp_uartx.h"
+#include "bsp_key.h"
+#include "bsp_dac.h"
+#include "gpio.h"
+#include "mlx90614.h"
+#include "TM1650.h"
+#include "string.h"
+#include "stdlib.h"
+#include "stdio.h"
+#include "limits.h"
+#include "rt_heap.h"
+	
 /* Exported macro ------------------------------------------------------------*/
+extern uint32_t __heap_base;
+#define HEAP_BASE __heap_base							//0x20002558
+#define HEAP_SIZE 0x00000050
+#define HEAP_END  HEAP_BASE+HEAP_SIZE
+	
 #define VOL_MAX 		145
 #define VOL_MIN 		40
-#define INIT_VOL 		94
-	
+#define INIT_VOL 		0
+#define COMM_BUFSIZE 64
+#define TOK_DELIM " ,\t\r\n"
+
 /* Private includes ----------------------------------------------------------*/
-#define COMM_BUFSIZE 32
+uint8_t position = 0;
 bool begin = 0;
+bool STA_COMM = false;
 uint8_t aRxBuffer;
 uint8_t flag_commOver = 0;
-uint8_t comm[20] = {'\0'};
+//uint8_t *comm = NULL;
+uint8_t comm[COMM_BUFSIZE] = {'\0'};
 uint8_t count_commChr = 0;
 float tempF = 0.0;
 uint8_t tempS[10] = {'\0'};
@@ -71,7 +92,11 @@ static uint8_t num[16] = {0x3f, 0x06, 0x5b, 0x4f,
 /* DAC输出对应值：可设置0~255，对应引脚输出0~3.3V，该值越大，引脚输出电压越高*/
 uint8_t outputV = INIT_VOL;
 uint8_t format_out[20] = {'\0'};
-float tempSet = 35.0;
+
+float lowTemp = 35.0;
+float midTemp = 50.0;
+float higTemp = 90.0;
+float tempSet = 25.0;		// current temp
 													
 float PID_P = 0.9;
 float PID_I = 1.0;
@@ -101,6 +126,36 @@ void SystemClock_Config(void);
 void ShowVal_float(float val);
 void ShowVal_int(uint8_t val);
 void Module_Init(void);
+float strTof(const char *args);
+
+#define LSH_TOK_BUFSIZE 64
+#define LSH_TOK_DELIM 	" ,\t\r\n"
+
+char **args;
+int cmd_status;
+
+/*** command ***/
+char *cmd_str[] = {
+  "PS"
+};
+
+/*** cmdFunc ***/
+int cmd_PS(char **args);
+
+/*** cmdFunc point ***/
+int (*cmd_funcP[]) (char **) = {
+  &cmd_PS
+};
+
+char **cmd_split(char *line);
+int cmd_execute(char**);
+int cmd_count(void);
+
+
+
+
+
+
 /* Private defines -----------------------------------------------------------*/
 
 #ifdef __cplusplus
