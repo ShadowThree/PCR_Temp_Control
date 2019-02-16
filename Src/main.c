@@ -352,6 +352,33 @@ void Module_Init(void)
 void Error_Handler(void)
 {}
 
+/***
+		ST,1 		// start
+		ST,0 		// stop
+	***/
+int cmd_ST(char **args)
+{
+	if (args[1] == NULL) 		// ²ÎÊý²»×ã
+	{
+		HAL_UART_Transmit(&huartx, (uint8_t*)"expected argument to \"ST\"\r\n", strlen("expected argument to \"PS\"\r\n"), 1000);
+	}
+	else
+	{
+		int num = atoi(args[1]);
+		
+		if(num == 0)
+			begin = 0;
+		else if(num == 1)
+			begin = 1;
+		else
+		{
+			HAL_UART_Transmit(&huartx, (uint8_t*)"Argument Wrong!\r\n", strlen("Argument Wrong!\r\n"), 1000);
+			return 0;
+		}
+	}
+	return 1;
+}
+
 /*
 PS,2,10.0		// set low temp
 PS,4,90.0		// set hign temp

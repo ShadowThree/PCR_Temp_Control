@@ -68,9 +68,9 @@ extern uint32_t __heap_base;
 #define HEAP_SIZE 0x00000050
 #define HEAP_END  HEAP_BASE+HEAP_SIZE
 	
-#define VOL_MAX 		145
-#define VOL_MIN 		40
-#define INIT_VOL 		0
+#define VOL_MAX 		180
+#define VOL_MIN 		0
+#define INIT_VOL 		90
 #define COMM_BUFSIZE 64
 #define TOK_DELIM " ,\t\r\n"
 
@@ -91,7 +91,7 @@ static uint8_t num[16] = {0x3f, 0x06, 0x5b, 0x4f,
 													0x39, 0x5e, 0x79, 0x71};
 /* DAC输出对应值：可设置0~255，对应引脚输出0~3.3V，该值越大，引脚输出电压越高*/
 uint8_t outputV = INIT_VOL;
-uint8_t format_out[20] = {'\0'};
+uint8_t format_out[30] = {'\0'};
 
 float lowTemp = 35.0;
 float midTemp = 50.0;
@@ -136,15 +136,18 @@ int cmd_status;
 
 /*** command ***/
 char *cmd_str[] = {
-  "PS"
+  "PS",
+	"ST"
 };
 
 /*** cmdFunc ***/
 int cmd_PS(char **args);
+int cmd_ST(char **args);
 
 /*** cmdFunc point ***/
 int (*cmd_funcP[]) (char **) = {
-  &cmd_PS
+  &cmd_PS,
+	&cmd_ST
 };
 
 char **cmd_split(char *line);
