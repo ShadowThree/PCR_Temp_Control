@@ -47,12 +47,17 @@ static uint8_t num[16] = {0x3f, 0x06, 0x5b, 0x4f,
 													0x7f, 0x6f, 0x77, 0x7c,
 													0x39, 0x5e, 0x79, 0x71};
 /* DAC输出对应值：可设置0~255，对应引脚输出0~3.3V，该值越大，引脚输出电压越高*/
-uint8_t outputV;
+uint16_t outputV;
 uint8_t format_out[30] = {'\0'};
 
-float lowTemp = 35.0;
-float midTemp = 50.0;
-float higTemp = 90.0;
+uint16_t preHeat_T = 120;		// unit is seconds.
+uint16_t higTemp_T = 15;
+uint16_t midTemp_T = 15;
+uint16_t lowTemp_T = 15;
+
+float lowTemp = 50.0;
+float midTemp = 72.0;
+float higTemp = 95.0;
 float tempSet = 25.0;		// current temp
 													
 float PID_P = 0.9;
@@ -79,10 +84,15 @@ enum {
 enum {
 	TEMP_CTRL_STOP = 0,
 	TEMP_CTRL_PRE_HEAT,
-	TEMP_CTRL_95,
-	TEMP_CTRL_50,
-	TEMP_CTRL_72
+	TEMP_CTRL_HIGH,
+	TEMP_CTRL_LOW,
+	TEMP_CTRL_MID
 } TEMP_CTRL_STA = TEMP_CTRL_STOP;
+
+enum {
+	TIM_STA_OFF = 0,
+	TIM_STA_ON,
+} TIM_STA = TIM_STA_OFF;
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported functions prototypes ---------------------------------------------*/

@@ -1,14 +1,5 @@
 #include "main.h"
 
-//#include "command.h"
-
-/* 私有类型定义 --------------------------------------------------------------*/
-/* 私有宏定义 ----------------------------------------------------------------*/
-/* 私有变量 ------------------------------------------------------------------*/
-/* 扩展变量 ------------------------------------------------------------------*/
-/* 私有函数原形 --------------------------------------------------------------*/
-/* 函数体 --------------------------------------------------------------------*/
-
 /**
   * 函数功能: 系统时钟配置
   * 输入参数: 无
@@ -102,9 +93,7 @@ int main(void)
 		STMFLASH_Read(Test_Addr, rdata, 1);
 	}
 	
-	HAL_TIM_Base_Start_IT(&htimx); 		// 启动定时器
-	
-	while(1)
+	while(0)
 	{
 		if(timer_count==1)
 		{
@@ -112,7 +101,7 @@ int main(void)
 			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
 		}
 	}
-  while(0)
+  while(1)
 	{	
 		// if comm is NOT null and already over.
 		if((comm[0] != '\0') && (comm[strlen((char*)comm)-1] == '\n'))
@@ -128,25 +117,41 @@ int main(void)
 		
 		if(TEMP_CTRL_STA != TEMP_CTRL_STOP)  // working status
 		{
-			HAL_Delay(cycle_ms);
 			tempF = SMBus_ReadTemp();
-			if(tempF >= 90.0)
+			
+			if((tempF >= higTemp-1) && (TIM_STA == TIM_STA_OFF) &&(TEMP_CTRL_STA == TEMP_CTRL_PRE_HEAT))
 			{
-				// 状态改变
-				// 开定时器
+				HAL_TIM_Base_Start_IT(&htimx); 		// 启动定时器
+				TIM_STA = TIM_STA_ON;
 			}
+			else if((tempF >= higTemp-1) && (TIM_STA == TIM_STA_OFF) &&(TEMP_CTRL_STA == TEMP_CTRL_HIGH))
+			{
+				HAL_TIM_Base_Start_IT(&htimx); 		// 启动定时器
+				TIM_STA = TIM_STA_ON;
+			}
+			else if((tempF <= lowTemp+1) && (TIM_STA == TIM_STA_OFF) &&(TEMP_CTRL_STA == TEMP_CTRL_LOW))
+			{
+				HAL_TIM_Base_Start_IT(&htimx); 		// 启动定时器
+				TIM_STA = TIM_STA_ON;
+			}
+			else if((tempF >= midTemp-1) && (TIM_STA == TIM_STA_OFF) &&(TEMP_CTRL_STA == TEMP_CTRL_MID))
+			{
+				HAL_TIM_Base_Start_IT(&htimx); 		// 启动定时器
+				TIM_STA = TIM_STA_ON;
+			}
+			
 			error = tempSet - tempF;
 			integral += error * ((float)cycle_ms / 1000);
 			derivative = (error - preErr)/cycle_ms;
 			PID_Out = PID_P*error + PID_I*integral + PID_D*derivative;
 			preErr = error;
 			outputV = PID_Out/2 + VOL_INIT;
+			
 			if(outputV >= VOL_MAX)
 				outputV = VOL_MAX;
 			if(outputV <= VOL_MIN)
 				outputV = VOL_MIN;
-			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, outputV);
-			//HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, outputV);
+			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, (uint8_t)outputV);
 			if(LED_Status == TEMP)
 				ShowVal_float(tempF);
 			else if(LED_Status == VOL_OUT)
@@ -154,6 +159,8 @@ int main(void)
 			
 			sprintf((char*)format_out, "%.2f, %3d, %.2f,\r\n", tempSet, outputV, tempF);
 			HAL_UART_Transmit(&huartx, format_out,strlen((char*)format_out),1000);
+			
+			HAL_Delay(cycle_ms);		// 采样间隔时间
 		}
   }
 }
@@ -280,10 +287,45 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
   */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	//if (htim == (&htimx))  // 判断是哪个定时器触发的中断
-	//{
-		timer_count++;
-	//}
+	timer_count++;
+	if(TEMP_CTRL_STA == TEMP_CTRL_PRE_HEAT)
+	{
+		if(timer_count >= preHeat_T*2)
+		{
+			timer_count = 0;
+			TEMP_CTRL_STA  = TEMP_CTRL_HIGH;
+			HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
+			TIM_STA = TIM_STA_OFF;
+			tempSet = higTemp;
+		}
+	}
+	else if(TEMP_CTRL_STA == TEMP_CTRL_HIGH)
+	{
+		if(timer_count >= higTemp_T*2)
+		{
+			timer_count = 0;
+			TEMP_CTRL_STA = TEMP_CTRL_LOW;
+			HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
+			TIM_STA = TIM_STA_OFF;
+			tempSet = lowTemp;
+		}
+	}
+	else if(TEMP_CTRL_STA == TEMP_CTRL_LOW)
+	{
+		timer_count = 0;
+		TEMP_CTRL_STA = TEMP_CTRL_MID;
+		HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
+		TIM_STA = TIM_STA_OFF;
+		tempSet = midTemp;
+	}
+	else if(TEMP_CTRL_STA == TEMP_CTRL_MID)
+	{
+		timer_count = 0;
+		TEMP_CTRL_STA = TEMP_CTRL_HIGH;
+		HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
+		TIM_STA = TIM_STA_OFF;
+		tempSet = higTemp;
+	}
 }
 
 /**
@@ -407,9 +449,16 @@ int cmd_ST(char **args)
 		int num = atoi(args[1]);
 		
 		if(num == 0)    		// command = "ST 0"
+		{
 			TEMP_CTRL_STA = TEMP_CTRL_STOP;
+			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, VOL_INIT);
+			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, VOL_INIT);
+		}
 		else if(num == 1)		// command = "ST 1"
+		{
 			TEMP_CTRL_STA = TEMP_CTRL_PRE_HEAT;
+			tempSet = higTemp;
+		}
 		else								// comm
 		{
 			HAL_UART_Transmit(&huartx, (uint8_t*)"Parameter Wrong!\r\n", strlen("Parameter Wrong!\r\n"), 1000);

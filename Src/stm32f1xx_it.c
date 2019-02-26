@@ -36,6 +36,7 @@
 #include "stm32f1xx_it.h"
 #include "uart/bsp_uartx.h"
 #include "bsp_key.h"
+#include "timer.h"
 
 /* USER CODE BEGIN 0 */
 
@@ -212,8 +213,6 @@ void KEY4_EXTI_IRQHandler(void)
 /**
 * @brief This function handles TIM2 global interrupt.
 */
-extern TIM_HandleTypeDef htimx;
-
 void GENERAL_TIM_INT_FUN(void)
 {
   /* USER CODE BEGIN TIM2_IRQn 0 */
