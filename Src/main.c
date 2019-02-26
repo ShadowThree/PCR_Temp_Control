@@ -93,13 +93,32 @@ void SystemClock_Config(void)
 int main(void)
 {
 	Module_Init();	
-  
-  while (1)
-  {	
+
+	/*SaveParam();
+  HAL_Delay(100);	*/
+	if(!GetParam())
+	{
+		// failed
+	}
+	
+  while(1)
+	{
+		if(SaveParam())
+		{
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+			HAL_Delay(500);
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+			HAL_Delay(500);
+		}
+	}
+	
+  //while (ReadConfig_STA == CONFIG_OK)
+  while(0)
+	{	
 		// if comm is NOT null and already over.
 		if((comm[0] != '\0') && (comm[strlen((char*)comm)-1] == '\n'))
 		{
-			args = cmd_split((char*)comm);
+			args = cmd_split((char*)comm, LSH_TOK_DELIM);
 			if(cmd_execute(args)) 		// if execute succssful, send OK
 				HAL_UART_Transmit(&huartx, (uint8_t*)"OK\r\n\r\n", strlen("OK\r\n\r\n"), 1000);
 			for(int i = 0; i < COMM_BUFSIZE; i++)  		// reset comm[]
@@ -108,7 +127,7 @@ int main(void)
 		}
 		HAL_Delay(10);
 		
-		if(begin == 1)  // working status
+		if(STATUS == LOOP_ON)  // working status
 		{
 			HAL_Delay(cycle_ms);
 			tempF = SMBus_ReadTemp();
@@ -117,7 +136,7 @@ int main(void)
 			derivative = (error - preErr)/cycle_ms;
 			PID_Out = PID_P*error + PID_I*integral + PID_D*derivative;
 			preErr = error;
-			outputV = PID_Out/2 + INIT_VOL;
+			outputV = PID_Out/2 + VOL_INIT;
 			if(outputV >= VOL_MAX)
 				outputV = VOL_MAX;
 			if(outputV <= VOL_MIN)
@@ -214,7 +233,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     HAL_Delay(20);/* 延时一小段时间，消除抖动 */
     if(HAL_GPIO_ReadPin(KEY_GPIO,KEY4_GPIO_PIN)==KEY4_DOWN_LEVEL)
     {
-			outputV = INIT_VOL;			// reset the outputV
+			outputV = VOL_INIT;			// reset the outputV
 			tempSet = 25.0;
 			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, outputV);
 			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, outputV);
@@ -329,9 +348,9 @@ void Module_Init(void)
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);		// light the LED
 	
   MX_DAC_Init();				// DAC init
-  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, INIT_VOL);		// Init the DAC's output
+  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, VOL_INIT);		// Init the DAC's output
   HAL_DAC_Start(&hdac, DAC_CHANNEL_1);		/* 启动DAC channel 1 */
-	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, INIT_VOL);		// Init the DAC's output
+	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, VOL_INIT);		// Init the DAC's output
   HAL_DAC_Start(&hdac, DAC_CHANNEL_2);		/* 启动DAC channel 2 */
 	
   MX_UARTx_Init();			/* 初始化串口并配置串口中断优先级 */
@@ -358,21 +377,22 @@ void Error_Handler(void)
 	***/
 int cmd_ST(char **args)
 {
-	if (args[1] == NULL) 		// 参数不足
+	if ((args[1] == NULL) || (args[2] != NULL)) 		// 参数不正确
 	{
-		HAL_UART_Transmit(&huartx, (uint8_t*)"expected argument to \"ST\"\r\n", strlen("expected argument to \"PS\"\r\n"), 1000);
+		HAL_UART_Transmit(&huartx, (uint8_t*)"Amount of Parameter Error!\r\n", strlen("Amount of Patameter Error!\r\n"), 1000);
+		return 0;
 	}
 	else
 	{
 		int num = atoi(args[1]);
 		
-		if(num == 0)
-			begin = 0;
-		else if(num == 1)
-			begin = 1;
-		else
+		if(num == 0)    		// command = "ST 0"
+			STATUS = LOOP_OFF;
+		else if(num == 1)		// command = "ST 1"
+			STATUS = LOOP_ON;
+		else								// comm
 		{
-			HAL_UART_Transmit(&huartx, (uint8_t*)"Argument Wrong!\r\n", strlen("Argument Wrong!\r\n"), 1000);
+			HAL_UART_Transmit(&huartx, (uint8_t*)"Parameter Wrong!\r\n", strlen("Parameter Wrong!\r\n"), 1000);
 			return 0;
 		}
 	}
@@ -380,58 +400,168 @@ int cmd_ST(char **args)
 }
 
 /*
+PS,1,25.0		// set standby temp
 PS,2,10.0		// set low temp
+PS,3,45.0 	// set mid temp
 PS,4,90.0		// set hign temp
-PS,7,25.0		// set current temp	
+PS,5,30 		// set cycle count
+PS,6,1000		// 
+PS,7,25.0		// set target temp	
 
-PS,2			// check low temp
-PS,4			// check hign temp
+PS,11,0.1 	// set PID_P value
+PS,12,0.1 	// set PID_I value
+PS,13,0.1 	// set PID_D value
 */
 int cmd_PS(char **args)
 {
 	if (args[1] == NULL) 		// 参数不足
 	{
-		HAL_UART_Transmit(&huartx, (uint8_t*)"expected argument to \"PS\"\n", strlen("expected argument to \"PS\"\n"), 1000);
+		HAL_UART_Transmit(&huartx, (uint8_t*)"Expected argument to \"PS\"\r\n", strlen("Expected argument to \"PS\"\r\n"), 1000);
+		return 0;
 	} 
 	else if(args[2] == NULL)	// 查询命令
 	{
 		int num = atoi(args[1]);
-		char tempStr[10] = {'\0'};
+		char paramStr[10] = {'\0'};
 		switch(num)
 		{
-			case 2:
-				
+			case 1:
 				break;
-			case 4:
+			case 2:				// command = "PS 2"
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Check lowTemp: ", strlen("Check lowTemp:　"), 1000);
+				sprintf(paramStr, "%.1f\r\n", lowTemp);
+				HAL_UART_Transmit(&huartx, (uint8_t*)paramStr, strlen(paramStr), 1000);
 				break;
-			case 7:
-				sprintf(tempStr, "%.1f\r\n", tempSet);
-				HAL_UART_Transmit(&huartx, (uint8_t*)tempStr, strlen(tempStr), 1000);
+			case 3:				// command = "PS 3"
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Check midTemp: ", strlen("Check midTemp:　"), 1000);
+				sprintf(paramStr, "%.1f\r\n", midTemp);
+				HAL_UART_Transmit(&huartx, (uint8_t*)paramStr, strlen(paramStr), 1000);
+				break;
+			case 4:				// command = "PS 4"
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Check higTemp: ", strlen("Check higTemp:　"), 1000);
+				sprintf(paramStr, "%.1f\r\n", higTemp);
+				HAL_UART_Transmit(&huartx, (uint8_t*)paramStr, strlen(paramStr), 1000);
+				break;
+			case 7:				// command = "PS 7"
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Check tempSet: ", strlen("Check tempSet:　"), 1000);
+				sprintf(paramStr, "%.1f\r\n", tempSet);
+				HAL_UART_Transmit(&huartx, (uint8_t*)paramStr, strlen(paramStr), 1000);
+				break;
+			case 11:				// command = "PS 11"
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Check PID_P value: ", strlen("Check PID_P value:　"), 1000);
+				sprintf(paramStr, "%.1f\r\n", PID_P);
+				HAL_UART_Transmit(&huartx, (uint8_t*)paramStr, strlen(paramStr), 1000);
+				break;
+			case 12:				// command = "PS 12"
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Check PID_I value: ", strlen("Check PID_I value:　"), 1000);
+				sprintf(paramStr, "%.1f\r\n", PID_I);
+				HAL_UART_Transmit(&huartx, (uint8_t*)paramStr, strlen(paramStr), 1000);
+				break;
+			case 13:				// command = "PS 13"
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Check PID_D value: ", strlen("Check PID_D value:　"), 1000);
+				sprintf(paramStr, "%.1f\r\n", PID_D);
+				HAL_UART_Transmit(&huartx, (uint8_t*)paramStr, strlen(paramStr), 1000);
 				break;
 			default:
-				break;
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Parameter Wrong!\r\n", strlen("Parameter Wrong!\r\n"), 1000);
+				return 0;
 		}
   }
 	else		// 设置命令  PS 7 23.0
 	{
 		int num = atoi(args[1]);
+		char str[30] = {'\0'};
 		switch(num)
 		{
+			case 1:
+				break;
 			case 2:
+				lowTemp = strTof(args[2]);
+				sprintf(str, "Set lowTemp value to %.1f\r\n", lowTemp);
+				HAL_UART_Transmit(&huartx, (uint8_t*)str, strlen(str), 1000);
+				break;
+			case 3:
+				midTemp = strTof(args[2]);
+				sprintf(str, "Set midTemp value to %.1f\r\n", midTemp);
+				HAL_UART_Transmit(&huartx, (uint8_t*)str, strlen(str), 1000);
 				break;
 			case 4:
+				higTemp = strTof(args[2]);
+				sprintf(str, "Set higTemp value to %.1f\r\n", higTemp);
+				HAL_UART_Transmit(&huartx, (uint8_t*)str, strlen(str), 1000);
 				break;
 			case 7:
 				tempSet = strTof(args[2]);
+				sprintf(str, "Set tempSet value to %.1f\r\n", tempSet);
+				HAL_UART_Transmit(&huartx, (uint8_t*)str, strlen(str), 1000);
+				break;
+			case 11:
+				PID_P = strTof(args[2]);
+				sprintf(str, "Set PID_P value to %.1f\r\n", PID_P);
+				HAL_UART_Transmit(&huartx, (uint8_t*)str, strlen(str), 1000);
+				break;
+			case 12:
+				PID_I = strTof(args[2]);
+				sprintf(str, "Set PID_I value to %.1f\r\n", PID_I);
+				HAL_UART_Transmit(&huartx, (uint8_t*)str, strlen(str), 1000);
+				break;
+			case 13:
+				PID_D = strTof(args[2]);
+				sprintf(str, "Set PID_D value to %.1f\r\n", PID_D);
+				HAL_UART_Transmit(&huartx, (uint8_t*)str, strlen(str), 1000);
 				break;
 			default:
-				break;
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Parameter Wrong!\r\n", strlen("Parameter Wrong!\r\n"), 1000);
+				return 0;
 		}
 	}
   return 1;
 }
 
-char **cmd_split(char *line)
+int cmd_GS(char **args)
+{
+	if ((args[1] == NULL) || (args[2] != NULL)) 		// 参数不正确
+	{
+		HAL_UART_Transmit(&huartx, (uint8_t*)"Amount of Parameter Error!\r\n", strlen("Amount of Patameter Error!\r\n"), 1000);
+		return 0;
+	}
+	else
+	{
+		int num = atoi(args[1]);
+		
+		if(num == 1)    		// command = "GS 1"
+		{
+			if(STATUS == LOOP_ON)
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Running\r\n", strlen("Running\r\n"), 1000);
+			else
+				HAL_UART_Transmit(&huartx, (uint8_t*)"Stop\r\n", strlen("Stop\r\n"), 1000);
+		}
+		else if(num == 2)		// command = "GS 2"
+		{
+			char str[30] = {'\0'};
+			sprintf(str, "Current Temp is %.1f\r\n", SMBus_ReadTemp());
+			HAL_UART_Transmit(&huartx, (uint8_t*)str, strlen(str), 1000);
+		}
+		else								// comm
+		{
+			HAL_UART_Transmit(&huartx, (uint8_t*)"Parameter Wrong!\r\n", strlen("Parameter Wrong!\r\n"), 1000);
+			return 0;
+		}
+	}
+	return 1;
+}
+
+int cmd_VR(char **args)
+{
+	return 1;
+}
+	
+int cmd_HP(char **args)
+{
+	return 1;
+}
+
+char **cmd_split(char *line, char *delim)
 {
   int position = 0;
   char **tokens = malloc(8 * sizeof(char*));
@@ -444,7 +574,7 @@ char **cmd_split(char *line)
   }
 
 	HAL_UART_Transmit(&huartx, (uint8_t*)"Comm = \"", strlen("Comm = \""), 1000);
-  token = strtok(line, LSH_TOK_DELIM);
+  token = strtok(line, delim);
 	HAL_UART_Transmit(&huartx, (uint8_t*)token, strlen(token), 1000);
 	
   while (token != NULL) 
@@ -452,7 +582,7 @@ char **cmd_split(char *line)
     tokens[position] = token;
     position++;
 
-    token = strtok(NULL, LSH_TOK_DELIM);
+    token = strtok(NULL, delim);
 		if(token)
 		{
 			HAL_UART_Transmit(&huartx, (uint8_t*)" ", strlen(" "), 1000);
@@ -530,4 +660,9 @@ float strTof(const char *args)
 
 	sign = (args[0] == '-')? -1 : 1;
 	return (sign * result);
+}
+
+void ReadConfigFile(void)
+{
+	
 }

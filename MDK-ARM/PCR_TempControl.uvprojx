@@ -708,10 +708,22 @@
               <FileType>1</FileType>
               <FilePath>..\Src\public.c</FilePath>
             </File>
+            <File>
+              <FileName>stm_flash.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\stm_flash.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
           <GroupName>Readme</GroupName>
+          <Files>
+            <File>
+              <FileName>PCR-TC_CommandList_190110.txt</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\..\PCR-TC_CommandList_190110.txt</FilePath>
+            </File>
+          </Files>
         </Group>
       </Groups>
     </Target>

@@ -1,45 +1,3 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.h
-  * @brief          : Header for main.c file.
-  *                   This file contains the common defines of the application.
-  ******************************************************************************
-  ** This notice applies to any and all portions of this file
-  * that are not between comment pairs USER CODE BEGIN and
-  * USER CODE END. Other portions of this file, whether 
-  * inserted by the user or by software development tools
-  * are owned by their respective copyright owners.
-  *
-  * COPYRIGHT(c) 2019 STMicroelectronics
-  *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  *
-  ******************************************************************************
-  */
-/* USER CODE END Header */
-
-/* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __MAIN_H
 #define __MAIN_H
 
@@ -61,6 +19,7 @@ extern "C" {
 #include "stdio.h"
 #include "limits.h"
 #include "rt_heap.h"
+#include "stm_flash.h"
 	
 /* Exported macro ------------------------------------------------------------*/
 extern uint32_t __heap_base;
@@ -68,15 +27,14 @@ extern uint32_t __heap_base;
 #define HEAP_SIZE 0x00000050
 #define HEAP_END  HEAP_BASE+HEAP_SIZE
 	
-#define VOL_MAX 		180
-#define VOL_MIN 		0
-#define INIT_VOL 		90
 #define COMM_BUFSIZE 64
-#define TOK_DELIM " ,\t\r\n"
+#define TOK_DELIM " ,\t\r\n="
 
 /* Private includes ----------------------------------------------------------*/
+int VOL_MAX = 180;
+int VOL_MIN =	0;
+int VOL_INIT = 90;
 uint8_t position = 0;
-bool begin = 0;
 bool STA_COMM = false;
 uint8_t aRxBuffer;
 uint8_t flag_commOver = 0;
@@ -90,7 +48,7 @@ static uint8_t num[16] = {0x3f, 0x06, 0x5b, 0x4f,
 													0x7f, 0x6f, 0x77, 0x7c,
 													0x39, 0x5e, 0x79, 0x71};
 /* DAC输出对应值：可设置0~255，对应引脚输出0~3.3V，该值越大，引脚输出电压越高*/
-uint8_t outputV = INIT_VOL;
+uint8_t outputV;
 uint8_t format_out[30] = {'\0'};
 
 float lowTemp = 35.0;
@@ -111,13 +69,23 @@ float PID_Out = 0.0;
 													
 /* Exported types ------------------------------------------------------------*/
 enum {
-TEMP = 0,
-VOL_OUT,
-SET_P,
-SET_I,
-SET_D,
-SET_T
+	TEMP = 0,
+	VOL_OUT,
+	SET_P,
+	SET_I,
+	SET_D,
+	SET_T
 } LED_Status = TEMP;
+
+enum {
+	LOOP_OFF = 0,
+	LOOP_ON
+} STATUS = LOOP_OFF;
+
+enum {
+	CONFIG_FAIL = 0,
+	CONFIG_OK
+} ReadConfig_STA = CONFIG_FAIL;
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported functions prototypes ---------------------------------------------*/
@@ -127,6 +95,7 @@ void ShowVal_float(float val);
 void ShowVal_int(uint8_t val);
 void Module_Init(void);
 float strTof(const char *args);
+void ReadConfigFile(void);
 
 #define LSH_TOK_BUFSIZE 64
 #define LSH_TOK_DELIM 	" ,\t\r\n"
@@ -137,20 +106,29 @@ int cmd_status;
 /*** command ***/
 char *cmd_str[] = {
   "PS",
-	"ST"
+	"ST",
+	"VR",
+	"HP",
+	"GS"
 };
 
 /*** cmdFunc ***/
 int cmd_PS(char **args);
 int cmd_ST(char **args);
+int cmd_VR(char **args);
+int cmd_HP(char **args);
+int cmd_GS(char **args);
 
 /*** cmdFunc point ***/
 int (*cmd_funcP[]) (char **) = {
   &cmd_PS,
-	&cmd_ST
+	&cmd_ST,
+	&cmd_VR,
+	&cmd_HP,
+	&cmd_GS
 };
 
-char **cmd_split(char *line);
+char **cmd_split(char *line, char *delim);
 int cmd_execute(char**);
 int cmd_count(void);
 
