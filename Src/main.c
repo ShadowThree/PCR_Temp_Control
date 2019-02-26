@@ -94,25 +94,24 @@ int main(void)
 {
 	Module_Init();	
 
-	/*SaveParam();
-  HAL_Delay(100);	*/
-	if(!GetParam())
+	uint16_t rdata[1];
+	STMFLASH_Read(Test_Addr, rdata, 1);	
+	while(rdata[0] != TestValue)		// 测试之前是否写入过数据，若写入过则直接读取数据，否则先写入数据。
 	{
-		// failed
+		SaveParam();
+		STMFLASH_Read(Test_Addr, rdata, 1);
 	}
 	
-  while(1)
+	HAL_TIM_Base_Start_IT(&htimx); 		// 启动定时器
+	
+	while(1)
 	{
-		if(SaveParam())
+		if(timer_count==1)
 		{
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-			HAL_Delay(500);
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-			HAL_Delay(500);
+			timer_count=0;
+			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
 		}
 	}
-	
-  //while (ReadConfig_STA == CONFIG_OK)
   while(0)
 	{	
 		// if comm is NOT null and already over.
@@ -127,10 +126,15 @@ int main(void)
 		}
 		HAL_Delay(10);
 		
-		if(STATUS == LOOP_ON)  // working status
+		if(TEMP_CTRL_STA != TEMP_CTRL_STOP)  // working status
 		{
 			HAL_Delay(cycle_ms);
 			tempF = SMBus_ReadTemp();
+			if(tempF >= 90.0)
+			{
+				// 状态改变
+				// 开定时器
+			}
 			error = tempSet - tempF;
 			integral += error * ((float)cycle_ms / 1000);
 			derivative = (error - preErr)/cycle_ms;
@@ -269,6 +273,20 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
 }
 
 /**
+  * 函数功能: 非阻塞模式下定时器的回调函数(每500ms进入一次)
+  * 输入参数: htim：定时器句柄
+  * 返 回 值: 无
+  * 说    明: 无
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	//if (htim == (&htimx))  // 判断是哪个定时器触发的中断
+	//{
+		timer_count++;
+	//}
+}
+
+/**
   * 函数功能: show int value in LED segments
   * 输入参数: val
   * 返 回 值: none
@@ -349,19 +367,21 @@ void Module_Init(void)
 	
   MX_DAC_Init();				// DAC init
   HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, VOL_INIT);		// Init the DAC's output
-  HAL_DAC_Start(&hdac, DAC_CHANNEL_1);		/* 启动DAC channel 1 */
+  HAL_DAC_Start(&hdac, DAC_CHANNEL_1); 			// 启动DAC channel 1 
 	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, VOL_INIT);		// Init the DAC's output
-  HAL_DAC_Start(&hdac, DAC_CHANNEL_2);		/* 启动DAC channel 2 */
+  HAL_DAC_Start(&hdac, DAC_CHANNEL_2);		 // 启动DAC channel 2 
 	
-  MX_UARTx_Init();			/* 初始化串口并配置串口中断优先级 */
+  MX_UARTx_Init();			 // 初始化串口并配置串口中断优先级 
 	HAL_UART_Transmit(&huartx, (uint8_t*)"\t\tPCR Temp Control System\t\t\n",strlen("\t\tPCR Temp Control System\t\t\n"),1000);
-  HAL_UART_Receive_IT(&huartx,&aRxBuffer,1);  	/* 使能接收，进入中断回调函数 */
+  HAL_UART_Receive_IT(&huartx,&aRxBuffer,1);  	 // 使能接收，进入中断回调函数 
 	
   SMBus_Init();					// init mlx90614/5
 	
 	TM1650_Init();				// Init TM1650
 	tempSet = SMBus_ReadTemp();
 	ShowVal_float(tempSet);		// Init the segments' display to 0000
+
+	GENERAL_TIMx_Init();		// init the timer2, 50ms
 }
 	
 /**
@@ -387,9 +407,9 @@ int cmd_ST(char **args)
 		int num = atoi(args[1]);
 		
 		if(num == 0)    		// command = "ST 0"
-			STATUS = LOOP_OFF;
+			TEMP_CTRL_STA = TEMP_CTRL_STOP;
 		else if(num == 1)		// command = "ST 1"
-			STATUS = LOOP_ON;
+			TEMP_CTRL_STA = TEMP_CTRL_PRE_HEAT;
 		else								// comm
 		{
 			HAL_UART_Transmit(&huartx, (uint8_t*)"Parameter Wrong!\r\n", strlen("Parameter Wrong!\r\n"), 1000);
@@ -531,7 +551,7 @@ int cmd_GS(char **args)
 		
 		if(num == 1)    		// command = "GS 1"
 		{
-			if(STATUS == LOOP_ON)
+			if(TEMP_CTRL_STA != TEMP_CTRL_STOP)
 				HAL_UART_Transmit(&huartx, (uint8_t*)"Running\r\n", strlen("Running\r\n"), 1000);
 			else
 				HAL_UART_Transmit(&huartx, (uint8_t*)"Stop\r\n", strlen("Stop\r\n"), 1000);
@@ -662,7 +682,3 @@ float strTof(const char *args)
 	return (sign * result);
 }
 
-void ReadConfigFile(void)
-{
-	
-}

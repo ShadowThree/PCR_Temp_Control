@@ -713,6 +713,11 @@
               <FileType>1</FileType>
               <FilePath>..\Src\stm_flash.c</FilePath>
             </File>
+            <File>
+              <FileName>timer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\timer.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

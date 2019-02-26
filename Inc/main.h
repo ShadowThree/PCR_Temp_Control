@@ -20,6 +20,7 @@ extern "C" {
 #include "limits.h"
 #include "rt_heap.h"
 #include "stm_flash.h"
+#include "timer.h"
 	
 /* Exported macro ------------------------------------------------------------*/
 extern uint32_t __heap_base;
@@ -28,17 +29,15 @@ extern uint32_t __heap_base;
 #define HEAP_END  HEAP_BASE+HEAP_SIZE
 	
 #define COMM_BUFSIZE 64
-#define TOK_DELIM " ,\t\r\n="
+#define TOK_DELIM " ,\t\r\n"
 
 /* Private includes ----------------------------------------------------------*/
+__IO uint16_t timer_count = 0;   		// 定时器计数
+
 int VOL_MAX = 180;
 int VOL_MIN =	0;
 int VOL_INIT = 90;
-uint8_t position = 0;
-bool STA_COMM = false;
 uint8_t aRxBuffer;
-uint8_t flag_commOver = 0;
-//uint8_t *comm = NULL;
 uint8_t comm[COMM_BUFSIZE] = {'\0'};
 uint8_t count_commChr = 0;
 float tempF = 0.0;
@@ -78,14 +77,12 @@ enum {
 } LED_Status = TEMP;
 
 enum {
-	LOOP_OFF = 0,
-	LOOP_ON
-} STATUS = LOOP_OFF;
-
-enum {
-	CONFIG_FAIL = 0,
-	CONFIG_OK
-} ReadConfig_STA = CONFIG_FAIL;
+	TEMP_CTRL_STOP = 0,
+	TEMP_CTRL_PRE_HEAT,
+	TEMP_CTRL_95,
+	TEMP_CTRL_50,
+	TEMP_CTRL_72
+} TEMP_CTRL_STA = TEMP_CTRL_STOP;
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported functions prototypes ---------------------------------------------*/

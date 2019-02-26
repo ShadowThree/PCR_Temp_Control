@@ -209,8 +209,19 @@ void KEY4_EXTI_IRQHandler(void)
   HAL_GPIO_EXTI_IRQHandler(KEY4_GPIO_PIN);
 }
 
+/**
+* @brief This function handles TIM2 global interrupt.
+*/
+extern TIM_HandleTypeDef htimx;
 
-/* USER CODE BEGIN 1 */
+void GENERAL_TIM_INT_FUN(void)
+{
+  /* USER CODE BEGIN TIM2_IRQn 0 */
 
-/* USER CODE END 1 */
+  /* USER CODE END TIM2_IRQn 0 */
+  HAL_TIM_IRQHandler(&htimx);
+  /* USER CODE BEGIN TIM2_IRQn 1 */
+
+  /* USER CODE END TIM2_IRQn 1 */
+}
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
