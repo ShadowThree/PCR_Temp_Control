@@ -321,10 +321,20 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	else if(TEMP_CTRL_STA == TEMP_CTRL_MID)
 	{
 		timer_count = 0;
-		TEMP_CTRL_STA = TEMP_CTRL_HIGH;
 		HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
 		TIM_STA = TIM_STA_OFF;
-		tempSet = higTemp;
+		
+		if(++cycle_count >= Cycle_Num)		// 达到了PCR要求的循环次数
+		{	
+			TEMP_CTRL_STA = TEMP_CTRL_STOP;
+			cycle_count = 0;
+			tempSet = 25.0;
+		}
+		else
+		{
+			TEMP_CTRL_STA = TEMP_CTRL_HIGH;
+			tempSet = higTemp;
+		}
 	}
 }
 
@@ -730,4 +740,3 @@ float strTof(const char *args)
 	sign = (args[0] == '-')? -1 : 1;
 	return (sign * result);
 }
-

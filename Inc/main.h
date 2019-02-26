@@ -49,6 +49,9 @@ static uint8_t num[16] = {0x3f, 0x06, 0x5b, 0x4f,
 /* DAC输出对应值：可设置0~255，对应引脚输出0~3.3V，该值越大，引脚输出电压越高*/
 uint16_t outputV;
 uint8_t format_out[30] = {'\0'};
+uint16_t cycle_ms = 1000;
+uint8_t cycle_count = 0;
+uint8_t Cycle_Num = 30;
 
 uint16_t preHeat_T = 120;		// unit is seconds.
 uint16_t higTemp_T = 15;
@@ -67,7 +70,6 @@ float PID_D = 0.0;
 float preErr = 0;
 float integral = 0;
 float error = 0;
-uint16_t cycle_ms = 1000;
 float derivative = 0;			
 float PID_Out = 0.0;
 													
