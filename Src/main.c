@@ -244,13 +244,21 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     HAL_Delay(20);/* 延时一小段时间，消除抖动 */
     if(HAL_GPIO_ReadPin(KEY_GPIO,KEY4_GPIO_PIN)==KEY4_DOWN_LEVEL)
     {
-			outputV = VOL_INIT;			// reset the outputV
-			tempSet = 25.0;
-			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, outputV);
-			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, outputV);
+			//tempSet = 25.0;
+			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, VOL_INIT);
+			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, VOL_INIT);
 			LED_Status = VOL_OUT;
-			ShowVal_int(outputV);
+			ShowVal_int(VOL_INIT);
 			HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_0);
+			
+			if(TIM_STA != TIM_STA_OFF)
+			{
+				HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
+				TIM_STA = TIM_STA_OFF;
+			}
+			cycle_count = 0;
+			integral = 0;
+			TEMP_CTRL_STA = TEMP_CTRL_STOP;
     }
     __HAL_GPIO_EXTI_CLEAR_IT(KEY4_GPIO_PIN);
   }
@@ -293,6 +301,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		if(timer_count >= preHeat_T*2)
 		{
 			timer_count = 0;
+			integral = 0;
 			TEMP_CTRL_STA  = TEMP_CTRL_HIGH;
 			HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
 			TIM_STA = TIM_STA_OFF;
@@ -304,6 +313,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		if(timer_count >= higTemp_T*2)
 		{
 			timer_count = 0;
+			integral = 0;
 			TEMP_CTRL_STA = TEMP_CTRL_LOW;
 			HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
 			TIM_STA = TIM_STA_OFF;
@@ -312,28 +322,35 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 	else if(TEMP_CTRL_STA == TEMP_CTRL_LOW)
 	{
-		timer_count = 0;
-		TEMP_CTRL_STA = TEMP_CTRL_MID;
-		HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
-		TIM_STA = TIM_STA_OFF;
-		tempSet = midTemp;
+		if(timer_count >= lowTemp_T*2)
+		{
+			timer_count = 0;
+			integral = 0;
+			TEMP_CTRL_STA = TEMP_CTRL_MID;
+			HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
+			TIM_STA = TIM_STA_OFF;
+			tempSet = midTemp;
+		}
 	}
 	else if(TEMP_CTRL_STA == TEMP_CTRL_MID)
 	{
-		timer_count = 0;
-		HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
-		TIM_STA = TIM_STA_OFF;
-		
-		if(++cycle_count >= Cycle_Num)		// 达到了PCR要求的循环次数
-		{	
-			TEMP_CTRL_STA = TEMP_CTRL_STOP;
-			cycle_count = 0;
-			tempSet = 25.0;
-		}
-		else
+		if(timer_count >= midTemp_T*2)
 		{
-			TEMP_CTRL_STA = TEMP_CTRL_HIGH;
-			tempSet = higTemp;
+			timer_count = 0;
+			HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
+			TIM_STA = TIM_STA_OFF;
+			integral = 0;
+			if(++cycle_count >= Cycle_Num)		// 达到了PCR要求的循环次数
+			{	
+				TEMP_CTRL_STA = TEMP_CTRL_STOP;
+				cycle_count = 0;
+				HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, VOL_INIT);
+			}
+			else
+			{
+				TEMP_CTRL_STA = TEMP_CTRL_HIGH;
+				tempSet = higTemp;
+			}
 		}
 	}
 }
@@ -424,7 +441,7 @@ void Module_Init(void)
   HAL_DAC_Start(&hdac, DAC_CHANNEL_2);		 // 启动DAC channel 2 
 	
   MX_UARTx_Init();			 // 初始化串口并配置串口中断优先级 
-	HAL_UART_Transmit(&huartx, (uint8_t*)"\t\tPCR Temp Control System\t\t\n",strlen("\t\tPCR Temp Control System\t\t\n"),1000);
+	HAL_UART_Transmit(&huartx, (uint8_t*)"\t\tPCR Temp Control System\r\n",strlen("\t\tPCR Temp Control System\r\n"),1000);
   HAL_UART_Receive_IT(&huartx,&aRxBuffer,1);  	 // 使能接收，进入中断回调函数 
 	
   SMBus_Init();					// init mlx90614/5
@@ -461,6 +478,13 @@ int cmd_ST(char **args)
 		if(num == 0)    		// command = "ST 0"
 		{
 			TEMP_CTRL_STA = TEMP_CTRL_STOP;
+			integral = 0;
+			if(TIM_STA != TIM_STA_OFF)
+			{
+				HAL_TIM_Base_Stop_IT(&htimx);// 停止计时
+				TIM_STA = TIM_STA_OFF;
+			}
+			cycle_count = 0;
 			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, VOL_INIT);
 			HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, VOL_INIT);
 		}
